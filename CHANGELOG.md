@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.3](https://github.com/bouob/gbrain-notion-sync/compare/v0.1.2...v0.1.3) (2026-05-17)
+
+
+### Bug Fixes
+
+* remove duplicate handwritten v0.1.0 changelog entry ([#12](https://github.com/bouob/gbrain-notion-sync/issues/12)) ([0160ce2](https://github.com/bouob/gbrain-notion-sync/commit/0160ce2ae9fdca2b11bbfb74bc4710867f3b7763))
+
 ## [0.1.2](https://github.com/bouob/gbrain-notion-sync/compare/v0.1.1...v0.1.2) (2026-05-17)
 
 
