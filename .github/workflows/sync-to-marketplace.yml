@@ -1,0 +1,110 @@
+name: Sync to marketplace
+
+on:
+  release:
+    types: [published]
+  # Allow manual trigger (useful for first-time setup and re-syncing after
+  # marketplace mirror is edited out-of-band).
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to sync (defaults to latest release if blank)"
+        required: false
+        default: ""
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [ -n "${{ github.event.release.tag_name }}" ]; then
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ github.event.inputs.tag }}" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            TAG=$(gh release view --repo ${{ github.repository }} --json tagName --jq .tagName)
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Checkout plugin repo at tag
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+          path: plugin
+
+      - name: Checkout marketplace repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          repository: bouob/claude-plugins
+          token: ${{ secrets.MARKETPLACE_TOKEN }}
+          path: marketplace
+
+      - name: Sync plugin files
+        run: |
+          PLUGIN_DIR="marketplace/plugins/gbrain-notion-sync"
+          rm -rf "$PLUGIN_DIR"
+          mkdir -p "$PLUGIN_DIR"
+
+          cd plugin
+          # Exclusions:
+          # - .git, .github: VCS / CI lives in plugin repo only
+          # - node_modules, dist: build artifacts, users rebuild after install
+          # - __pycache__, .vscode, .idea: editor / language caches
+          # - .gitignore: not useful in marketplace mirror
+          # - release-please-manifest.json, release-please-config.json, CHANGELOG.md:
+          #   release-please artifacts owned by the plugin repo
+          # - *.log: stray logs
+          # - .env: real secrets (must never sync)
+          # - .env.* EXCEPT *.example / *.sample / *.template: template files
+          #   without secrets ARE useful in the mirror
+          find . \
+            -not -path './.git/*' -not -path './.git' \
+            -not -path './.github/*' -not -path './.github' \
+            -not -path './node_modules/*' -not -path './node_modules' \
+            -not -path './dist/*' -not -path './dist' \
+            -not -path './__pycache__/*' -not -path './__pycache__' \
+            -not -path './.vscode/*' -not -path './.vscode' \
+            -not -path './.idea/*' -not -path './.idea' \
+            -not -name '.gitignore' \
+            -not -name '.release-please-manifest.json' \
+            -not -name 'release-please-config.json' \
+            -not -name 'CHANGELOG.md' \
+            -not -name '*.log' \
+            -not -name '.env' \
+            -not \( -name '.env.*' -a -not -name '*.example' -a -not -name '*.sample' -a -not -name '*.template' \) \
+            | while read -r item; do
+                if [ -d "$item" ]; then
+                  mkdir -p "../$PLUGIN_DIR/$item"
+                elif [ -f "$item" ]; then
+                  cp "$item" "../$PLUGIN_DIR/$item"
+                fi
+              done
+
+      - name: Create PR and auto-merge
+        working-directory: marketplace
+        env:
+          GH_TOKEN: ${{ secrets.MARKETPLACE_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          BRANCH="sync/gbrain-notion-sync-${TAG}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to sync — marketplace mirror already matches ${TAG}."
+            exit 0
+          fi
+          git commit -m "sync: gbrain-notion-sync ${TAG}"
+          git push origin "$BRANCH"
+          PR_URL=$(gh pr create \
+            --title "sync: gbrain-notion-sync ${TAG}" \
+            --body "Automated sync from bouob/gbrain-notion-sync release ${TAG}.")
+          gh pr merge "$PR_URL" --squash --delete-branch
