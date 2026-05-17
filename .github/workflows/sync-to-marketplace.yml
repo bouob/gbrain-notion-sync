@@ -42,7 +42,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
         with:
           repository: bouob/claude-plugins
-          token: ${{ secrets.MARKETPLACE_TOKEN }}
+          token: ${{ secrets.GBRAIN_NOTION_MARKETPLACE_TOKEN }}
           path: marketplace
 
       - name: Sync plugin files
@@ -89,7 +89,7 @@ jobs:
       - name: Create PR and auto-merge
         working-directory: marketplace
         env:
-          GH_TOKEN: ${{ secrets.MARKETPLACE_TOKEN }}
+          GH_TOKEN: ${{ secrets.GBRAIN_NOTION_MARKETPLACE_TOKEN }}
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
           BRANCH="sync/gbrain-notion-sync-${TAG}"
