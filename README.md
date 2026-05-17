@@ -51,30 +51,30 @@ bun install --ignore-scripts   # --ignore-scripts is required on Windows
 bun run build
 ```
 
-### 3. Configure `.env`
-
-Copy the template and fill in your secrets:
-
-```bash
-cp .env.example .env
-# Edit .env in your editor — fill in NOTION_TOKEN, ANTHROPIC_API_KEY,
-# GBRAIN_PLUGIN_PATH (absolute path to this dir), and the four NOTION_DB_*
-# UUIDs from your PAI database page URLs.
-```
-
-### 4. Verify everything is wired up
+### 3. Interactive setup (recommended)
 
 In Claude Code:
 
 ```text
-/notion-sync doctor
+/notion-sync init
 ```
 
-You should see seven checks all PASS. If the Notion DB checks fail with HTTP
-404, your integration is not shared with that database — fix in Notion UI
-(database page > ... > Connections > Add gbrain-sync).
+Walks you through `.env` creation step by step:
 
-### 5. First sync
+- Pastes your Notion Integration Secret, **validated immediately** against `/v1/users/me`
+- Pastes your Anthropic API key (optional — can leave blank)
+- For each of the four PAI databases: paste **either** the Notion page URL **or** the 32-character UUID; the script extracts and formats the UUID for you, then validates the database is reachable with your integration
+- Asks whether to install the Windows Task Scheduler entry now
+- Writes `.env` for you, runs `doctor`, and offers to fire the first sync
+
+If anything fails validation, init re-prompts the failing step without
+restarting from scratch.
+
+> **Prefer the terminal?** `cp .env.example .env && $EDITOR .env` still
+> works — `init` is a convenience, not a requirement. See [RUNBOOK.md](./RUNBOOK.md)
+> for the manual key-by-key walkthrough.
+
+### 4. First sync
 
 ```text
 /notion-sync pull
@@ -155,7 +155,8 @@ server is registered (see RUNBOOK.md Step 8).
 
 | Sub-command | Purpose |
 |---|---|
-| `/notion-sync setup` | First-time environment verification |
+| `/notion-sync init` | Interactive first-time setup — collects keys + DB IDs, validates each, writes `.env` |
+| `/notion-sync setup` | Re-verify environment after editing `.env` by hand |
 | `/notion-sync pull` | One-shot Notion to gbrain pull |
 | `/notion-sync schedule` | Install Windows Task Scheduler entry (default 15 min) |
 | `/notion-sync postprocess` | Run `gbrain extract links`, `dream`, and (opt) `embed --stale` |
