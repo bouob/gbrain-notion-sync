@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0](https://github.com/bouob/gbrain-notion-sync/compare/v0.1.0...v0.2.0) (2026-05-17)
+
+
+### Features
+
+* **gbrain-notion-sync:** sync updates 2026-05-17 ([#1](https://github.com/bouob/gbrain-notion-sync/issues/1)) ([784ead6](https://github.com/bouob/gbrain-notion-sync/commit/784ead6e7e01a3f181bbe39400180661e88f0dca))
+
 ## [0.1.0] - 2026-05-17
 
 ### Added
