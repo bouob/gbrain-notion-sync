@@ -19,6 +19,29 @@ gbrain jobs submit gbrain_sync --params ...
 
 ---
 
+## 推薦：互動式 setup（v0.1.1+）
+
+完成 gbrain 安裝（Step 1）與 Notion Integration 建立 + 分享 4 個 PAI 資料庫（Step 2、Step 4）後，**其餘步驟可用 `/notion-sync init` 一次跑完**（v0.1.1+）：
+
+```text
+/notion-sync init
+```
+
+Claude Code 會用對話方式依序問你：
+
+1. 是否覆蓋既有 `.env`（若存在）
+2. Notion Integration Secret（即時 GET `/v1/users/me` 驗證）
+3. Anthropic API Key（可空）
+4. 4 個 PAI 資料庫的 **頁面 URL 或 UUID**（每個都即時 GET `/v1/databases/{id}` 驗證）
+5. 是否安裝 Windows Task Scheduler 定時 sync
+6. 是否立即跑第一次 sync
+
+每步若驗證失敗會就地重問（不會從頭開始）。寫好 `.env` 後會自動跑 `doctor` 確認 7 項都過。
+
+> **想用 terminal / 不在 Claude Code 裡？** 下面的九步驟手動流程仍可用（Step 3 的 `cp .env.example .env` + 編輯器手填）。`/notion-sync init` 是便利，不是必須。
+
+---
+
 ## 九個必要步驟（按順序執行）
 
 ### Step 1 — 安裝並全域連結 gbrain

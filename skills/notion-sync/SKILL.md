@@ -3,13 +3,14 @@ name: notion-sync
 description: >
   Sync Notion PAI second-brain (Projects, To-Do, Inbox, Knowledge Base) into
   the local gbrain knowledge graph for fast Claude Code retrieval. One-way
-  pull only (Notion is source of truth). Includes Windows Task Scheduler
-  installer and gbrain post-processing hooks.
-  Use when the user says /notion-sync, sync notion, pull notion, refresh brain,
-  schedule notion sync, install notion sync task, run notion postprocess,
-  notion sync status, notion sync doctor, 同步 notion, 拉取 notion,
-  安裝定時同步, 跑後處理, brain 沒更新, 檢查 notion 同步.
-  Sub-commands: setup, pull, schedule, postprocess, status, doctor.
+  pull only (Notion is source of truth). Includes interactive first-time
+  init, Windows Task Scheduler installer, and gbrain post-processing hooks.
+  Use when the user says /notion-sync, init notion sync, setup notion sync,
+  sync notion, pull notion, refresh brain, schedule notion sync,
+  install notion sync task, run notion postprocess, notion sync status,
+  notion sync doctor, 初始化 notion, 設定 notion sync, 同步 notion,
+  拉取 notion, 安裝定時同步, 跑後處理, brain 沒更新, 檢查 notion 同步.
+  Sub-commands: init, setup, pull, schedule, postprocess, status, doctor.
   Do NOT use for: writing or updating Notion page content (use Notion MCP
   tools like notion-update-page), general gbrain queries (use mcp__gbrain__*
   directly), installing gbrain itself (use gbrain CLI per RUNBOOK.md Step 1),
@@ -20,6 +21,7 @@ allowed_tools:
   - Write
   - Glob
   - Grep
+  - AskUserQuestion
 ---
 
 # /notion-sync
@@ -32,6 +34,159 @@ hybrid search and graph traversal.
 ---
 
 ## Sub-commands
+
+### `/notion-sync init`
+
+Interactive first-time setup. Walks the user through creating `.env` with
+all seven required keys, validating each as it is collected. Use this
+instead of asking the user to manually copy `.env.example` and edit values.
+
+The flow is conversational: ask one thing at a time, validate via API
+call before moving on, and write `.env` only once everything checks out.
+
+## Step 1 — Detect existing `.env` and confirm intent
+
+```bash
+test -f "$CLAUDE_PLUGIN_ROOT/.env" && echo "EXISTS" || echo "MISSING"
+```
+
+If `EXISTS`, use `AskUserQuestion` to ask whether to (a) back up to
+`.env.bak.<timestamp>` then overwrite, (b) keep existing and exit, or
+(c) abort. If `MISSING`, proceed.
+
+If user picks "back up", run:
+
+```bash
+cp "$CLAUDE_PLUGIN_ROOT/.env" "$CLAUDE_PLUGIN_ROOT/.env.bak.$(date +%s)"
+```
+
+## Step 2 — Collect and validate the Notion token
+
+Ask the user in chat (NOT via `AskUserQuestion` — token paste is long
+free text, not a multiple choice):
+
+> "Open https://notion.so/my-integrations, create or open an integration,
+> and paste the Internal Integration Secret here (starts with `secret_` or
+> `ntn_`):"
+
+Wait for the user's next message. Take the pasted value as `NOTION_TOKEN`.
+Validate immediately:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}" \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Notion-Version: 2022-06-28" \
+  https://api.notion.com/v1/users/me
+```
+
+Expected: `200`. If `401`, the token is wrong — ask user to re-paste. If
+any other code, report it and let the user decide.
+
+## Step 3 — Collect the Anthropic API key
+
+Ask in chat:
+
+> "Now your Anthropic API key (from https://console.anthropic.com/, starts
+> with `sk-ant-`). Press Enter on a blank line if you want to skip this
+> for now (you can fill it in later)."
+
+No validation — Anthropic doesn't expose a cheap me-endpoint. Store as
+`ANTHROPIC_API_KEY`. If blank, leave the value empty in `.env`.
+
+## Step 4 — Resolve `GBRAIN_PLUGIN_PATH`
+
+Default: the absolute path of `$CLAUDE_PLUGIN_ROOT` (or `pwd` if running
+outside Claude Code). Use `AskUserQuestion` to confirm or override.
+
+## Step 5 — Collect the four `NOTION_DB_*` IDs
+
+For each of the four databases (Projects, To-Do, Inbox, Knowledge Base),
+ask in chat:
+
+> "Paste the Notion page URL OR the 32-character UUID for the **Projects**
+> database:"
+
+Accept either form. Extract the UUID:
+
+```bash
+echo "<USER_INPUT>" | grep -oiE '[a-f0-9-]{32,36}' | tr -d '-' | tail -c 33 | head -c 32
+```
+
+This pulls the last 32 hex chars (whether the input is a URL with title
+prefix, a UUID with dashes, or a bare UUID). Reformat with dashes at
+positions 8/12/16/20:
+
+```bash
+UUID_RAW=<the 32-char output>
+echo "${UUID_RAW:0:8}-${UUID_RAW:8:4}-${UUID_RAW:12:4}-${UUID_RAW:16:4}-${UUID_RAW:20:12}"
+```
+
+Validate the database is reachable AND the integration is shared with it:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}" \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Notion-Version: 2022-06-28" \
+  "https://api.notion.com/v1/databases/<FORMATTED_UUID>"
+```
+
+Expected: `200`. If `404`, either the UUID is wrong OR the integration is
+not shared with this database — tell the user to go to Notion (DB page >
+... > Connections > Add) and re-validate. Do not move on until `200`.
+
+Repeat for Todo, Inbox, Knowledge.
+
+## Step 6 — Optional: install the scheduled task
+
+Use `AskUserQuestion`:
+
+> "Install Windows Task Scheduler entry for automatic 15-minute sync?"
+> Options: "Yes, every 15 min" / "Yes, every 5 min" / "No, I'll run manually"
+
+If yes, after writing `.env` (Step 7), call `install-task.ps1` with the
+chosen interval.
+
+## Step 7 — Write `.env`
+
+Compose the full file content from the collected values and use the
+`Write` tool to save it to `$CLAUDE_PLUGIN_ROOT/.env`. Template:
+
+```
+NOTION_TOKEN=<collected>
+ANTHROPIC_API_KEY=<collected or empty>
+GBRAIN_PLUGIN_PATH=<resolved>
+NOTION_DB_PROJECTS=<formatted UUID>
+NOTION_DB_TODO=<formatted UUID>
+NOTION_DB_INBOX=<formatted UUID>
+NOTION_DB_KNOWLEDGE=<formatted UUID>
+```
+
+## Step 8 — Build and verify
+
+```bash
+cd "$CLAUDE_PLUGIN_ROOT" && bun install --ignore-scripts && bun run build
+node scripts/doctor.mjs
+```
+
+All seven doctor checks should PASS. If anything fails, report it and
+offer to re-run the relevant step.
+
+## Step 9 — Optional first sync
+
+Use `AskUserQuestion`:
+
+> "Run the first sync now? (one-way pull, all four databases)"
+
+If yes:
+
+```bash
+node scripts/sync-pull.mjs
+```
+
+Then suggest the user run `/notion-sync postprocess` once the pull
+completes (to refresh gbrain's backlink graph).
+
+---
 
 ### `/notion-sync setup`
 
