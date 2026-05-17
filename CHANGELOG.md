@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.1](https://github.com/bouob/gbrain-notion-sync/compare/v0.1.0...v0.1.1) (2026-05-17)
+
+
+### Features
+
+* add /notion-sync init for interactive onboarding ([#6](https://github.com/bouob/gbrain-notion-sync/issues/6)) ([dc728a2](https://github.com/bouob/gbrain-notion-sync/commit/dc728a2782656b14fd9445273ecc4347c975a7b2))
+
 ## 0.1.0 (2026-05-17)
 
 
