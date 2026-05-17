@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.2](https://github.com/bouob/gbrain-notion-sync/compare/v0.1.1...v0.1.2) (2026-05-17)
+
+
+### Bug Fixes
+
+* add /notion-sync argument-hint for inline autocomplete ([#8](https://github.com/bouob/gbrain-notion-sync/issues/8)) ([410ea50](https://github.com/bouob/gbrain-notion-sync/commit/410ea50052fe7a05f511679f89409c069c47dd67))
+
 ## [0.1.1](https://github.com/bouob/gbrain-notion-sync/compare/v0.1.0...v0.1.1) (2026-05-17)
 
 
