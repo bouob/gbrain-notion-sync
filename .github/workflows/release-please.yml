@@ -7,12 +7,29 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@a02a34c4d625f9be7cb89156071d8567266a2445 # v4.1.3
+        id: release
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      # release-please creates the GitHub Release with the default GITHUB_TOKEN.
+      # GitHub blocks GITHUB_TOKEN-originated `release: published` events from
+      # triggering other workflows (loop-prevention safeguard), so we explicitly
+      # dispatch the marketplace sync here. `workflow_dispatch` is the documented
+      # exception to that limit, so the default token is sufficient — no PAT
+      # required for this hop.
+      - name: Trigger marketplace sync
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run sync-to-marketplace.yml \
+            --repo "${{ github.repository }}" \
+            -f tag="${{ steps.release.outputs.tag_name }}"
