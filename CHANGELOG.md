@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.4](https://github.com/bouob/gbrain-notion-sync/compare/v0.1.3...v0.1.4) (2026-05-18)
+
+
+### Bug Fixes
+
+* **ci:** auto-trigger marketplace sync after release-please creates release ([#14](https://github.com/bouob/gbrain-notion-sync/issues/14)) ([701802a](https://github.com/bouob/gbrain-notion-sync/commit/701802aa39ca30352b31c6c10a33372ac8388be6))
+
 ## [0.1.3](https://github.com/bouob/gbrain-notion-sync/compare/v0.1.2...v0.1.3) (2026-05-17)
 
 
