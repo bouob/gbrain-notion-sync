@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.5](https://github.com/bouob/gbrain-notion-sync/compare/v0.1.4...v0.1.5) (2026-05-19)
+
+
+### Bug Fixes
+
+* **notion-sync:** align postprocess.mjs with real gbrain CLI ([#16](https://github.com/bouob/gbrain-notion-sync/issues/16)) ([86a39f3](https://github.com/bouob/gbrain-notion-sync/commit/86a39f3cd60a8d76e99b1e215892abc294f002ee))
+
 ## [0.1.4](https://github.com/bouob/gbrain-notion-sync/compare/v0.1.3...v0.1.4) (2026-05-18)
 
 
