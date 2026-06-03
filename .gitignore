@@ -5,3 +5,4 @@ dist/
 node_modules/
 *.db-shm
 *.db-wal
+bun.lock
