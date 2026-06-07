@@ -127,7 +127,7 @@ schtasks /Run /TN gbrain-notion-sync   # run once now from any terminal
 /notion-sync doctor
 ```
 
-Tells you exactly which of the seven things (env vars, build, gbrain CLI,
+Tells you exactly which prerequisite (env vars, build, gbrain CLI,
 Notion token, four DB reachabilities) is broken.
 
 ---
@@ -161,7 +161,7 @@ server is registered (see RUNBOOK.md Step 8).
 | `/notion-sync schedule` | Install Windows Task Scheduler entry (default 15 min) |
 | `/notion-sync postprocess` | Run `gbrain extract links`, `dream`, and (opt) `embed --stale` |
 | `/notion-sync status` | Show brain contents and scheduled task state |
-| `/notion-sync doctor` | Seven-check health probe |
+| `/notion-sync doctor` | Full health probe (env keys + gbrain + Notion) |
 
 See [skills/notion-sync/SKILL.md](./skills/notion-sync/SKILL.md) for the
 full sub-command spec including expected output and exit codes.
@@ -199,7 +199,7 @@ sharing databases with the integration, MCP wiring for Claude Code) is in
 | `Cannot GET /admin` | Admin URL missing trailing slash | Use `http://localhost:7432/admin/` (trailing slash required) |
 
 For everything else: `/notion-sync doctor` is the first stop. It tells you
-which of seven prerequisites is failing.
+which prerequisite is failing.
 
 ---
 

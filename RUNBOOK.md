@@ -80,8 +80,10 @@ bun link
 
    ```env
    NOTION_TOKEN=secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-   ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxxxxxxxxx
-   GBRAIN_PLUGIN_PATH=/absolute/path/to/notion-sync
+   NOTION_DB_PROJECTS=...
+   NOTION_DB_TODO=...
+   NOTION_DB_INBOX=...
+   NOTION_DB_KNOWLEDGE=...
    ```
 
    **注意**：不要把真實 token 提交到 git（`.env` 已在 `.gitignore`）。
@@ -101,13 +103,12 @@ bun link
 
 ### Step 5 — 設定環境變數
 
-確認 `.env` 中以下三個 key 均已填入：
+確認 `.env` 中以下 key 均已填入：
 
 | 變數 | 說明 |
 |---|---|
 | `NOTION_TOKEN` | Step 3 取得的 Integration Secret |
-| `ANTHROPIC_API_KEY` | Anthropic API 金鑰 |
-| `GBRAIN_PLUGIN_PATH` | 本目錄的絕對路徑（例如 `/home/user/notion-sync`）|
+| `NOTION_DB_PROJECTS` / `_TODO` / `_INBOX` / `_KNOWLEDGE` | 四個 PAI 資料庫 ID |
 
 ---
 
@@ -172,21 +173,29 @@ gbrain doctor
 
 參考官方部署文件：https://github.com/garrytan/gbrain/blob/master/docs/mcp/DEPLOY.md
 
-範例（格式依官方文件為準）：
+目前採 **HTTP transport**（需先 `gbrain serve --http --port 7432` 在背景跑）。
+用 OAuth client_credentials 換 `access_token` 後加入：
+
+```bash
+claude mcp add --transport http --scope user gbrain \
+  http://localhost:7432/mcp --header "Authorization: Bearer <access_token>"
+```
+
+對應 `~/.claude.json` 條目：
 
 ```json
 {
   "mcpServers": {
     "gbrain": {
-      "command": "gbrain",
-      "args": ["mcp"],
-      "env": {
-        "GBRAIN_PLUGIN_PATH": "/absolute/path/to/notion-sync"
-      }
+      "type": "http",
+      "url": "http://localhost:7432/mcp",
+      "headers": { "Authorization": "Bearer <OAuth access_token>" }
     }
   }
 }
 ```
+
+（舊的 stdio `gbrain mcp` + `GBRAIN_PLUGIN_PATH` 接法已棄用——gbrain 不再 plugin-load notion-sync。）
 
 ---
 
