@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0](https://github.com/bouob/gbrain-notion-sync/compare/v0.2.0...v0.3.0) (2026-06-08)
+
+
+### Features
+
+* **notion-sync:** one-way push model and simplified command surface ([c3e917b](https://github.com/bouob/gbrain-notion-sync/commit/c3e917b0a349dab591b06de57c04f0b6f512cf5d))
+* **notion-sync:** one-way push model and simplified command surface ([b4d1e0c](https://github.com/bouob/gbrain-notion-sync/commit/b4d1e0ca096f47290fa9db7818a1e475e909d7bb))
+
 ## [0.2.0](https://github.com/bouob/gbrain-notion-sync/compare/v0.1.5...v0.2.0) (2026-06-03)
 
 
