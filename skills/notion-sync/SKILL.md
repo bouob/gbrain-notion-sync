@@ -2,48 +2,38 @@
 name: notion-sync
 description: >
   Sync the Notion PAI second-brain (Projects, To-Do, Inbox, Knowledge Base)
-  with the local gbrain knowledge graph. Pull mirrors Notion into gbrain;
-  push reconciles local gbrain edits back to Notion (bidirectional — Notion
-  wins on conflict). Includes interactive first-time init and gbrain
-  post-processing hooks.
-  Use when the user says /notion-sync, init notion sync, setup notion sync,
-  sync notion, pull notion, push notion, refresh brain, notion sync status,
-  notion sync conflicts, run notion postprocess, notion sync doctor,
-  初始化 notion, 設定 notion sync, 同步 notion, 拉取 notion, 推回 notion,
-  雙向同步, 跑後處理, brain 沒更新, 檢查 notion 同步, notion 衝突,
-  capture, 記進腦, 存到 brain, 把這次學到的記下來.
-  Sub-commands: init, setup, pull, push, conflicts, schedule, postprocess,
-  status, doctor, capture.
+  with the local gbrain knowledge graph. `pull` mirrors Notion into gbrain
+  (down); `push` sends local gbrain edits up to Notion (up-only — a page
+  changed on the Notion side is left for the next pull, never clobbered).
+  Includes interactive first-time init.
+  Use when the user says /notion-sync, init notion sync, sync notion,
+  pull notion, push notion, refresh brain, notion sync status,
+  notion sync conflicts, notion sync doctor,
+  初始化 notion, 同步 notion, 拉取 notion, 推回 notion, 雙向同步,
+  brain 沒更新, 檢查 notion 同步, notion 衝突.
+  Sub-commands: init, pull, push, conflicts, schedule, status, doctor.
   Do NOT use for: ad-hoc Notion page edits (use Notion MCP tools like
   notion-update-page), general gbrain queries (use mcp__gbrain__* directly),
   or installing gbrain itself (use gbrain CLI per RUNBOOK.md Step 1).
 triggers:
   - /notion-sync
   - init notion sync
-  - setup notion sync
   - sync notion
   - pull notion
   - push notion
   - refresh brain
   - notion sync status
   - notion sync conflicts
-  - run notion postprocess
   - notion sync doctor
   - 初始化 notion
-  - 設定 notion sync
   - 同步 notion
   - 拉取 notion
   - 推回 notion
   - 雙向同步
-  - 跑後處理
   - brain 沒更新
   - 檢查 notion 同步
   - notion 衝突
-  - capture
-  - 記進腦
-  - 存到 brain
-  - 把這次學到的記下來
-argument-hint: "[init|setup|pull|push|conflicts|schedule|postprocess|status|doctor|capture]"
+argument-hint: "[init|pull|push|conflicts|schedule|status|doctor]"
 allowed_tools:
   - Bash
   - Read
@@ -55,11 +45,14 @@ allowed_tools:
 
 # /notion-sync
 
-Bidirectional Notion PAI ↔ gbrain sync pipeline, packaged as a Claude Code plugin.
+Notion PAI ↔ gbrain sync pipeline, packaged as a Claude Code plugin.
 
-Notion is the human interface and wins on conflict; gbrain is an agent-friendly
-local mirror with hybrid search and graph traversal. Pull mirrors Notion into
-gbrain; push reconciles local gbrain edits back to Notion.
+Notion is the human interface (source of truth); gbrain is an agent-friendly
+local mirror with hybrid search and graph traversal. Two one-way directions:
+**`pull`** mirrors Notion → gbrain (down); **`push`** sends local gbrain edits →
+Notion (up). A "bidirectional" sync is just `pull` then `push`. The down
+direction is always `pull`'s job — `push` never writes gbrain and never
+overwrites a Notion page that changed since the last sync.
 
 ---
 
@@ -203,60 +196,8 @@ If yes:
 bun scripts/sync-pull.mjs
 ```
 
-Then suggest the user run `/notion-sync postprocess` once the pull
-completes (to refresh gbrain's backlink graph).
-
----
-
-### `/notion-sync setup`
-
-First-time environment verification.
-
-## Step 1 — Confirm env vars present
-
-Check that `${CLAUDE_PLUGIN_ROOT}/.env` exists and contains the five required
-keys. If `.env` is missing, copy from `.env.example` first.
-
-```powershell
-# Windows PowerShell
-Get-Content "$env:CLAUDE_PLUGIN_ROOT\.env" | Select-String "NOTION_TOKEN|NOTION_DB_"
-```
-
-Expected: five lines printed (Notion token + four DB IDs). Empty values are
-allowed during setup but must be filled before `/notion-sync pull`.
-
-## Step 2 — Install dependencies
-
-```powershell
-cd "$env:CLAUDE_PLUGIN_ROOT"
-bun install --ignore-scripts
-bun run build
-```
-
-`--ignore-scripts` is required on Windows (see Gotchas).
-
-## Step 3 — Run gbrain health check
-
-```bash
-gbrain doctor
-```
-
-Expected: all checks PASS. `engine` should read `postgres` (the brain lives on
-Supabase Postgres + pgvector since 2026-06-07; the old local PGLite engine is
-retired — see Gotchas). `gbrain doctor` connecting means the Supabase pooler URL
-in `~/.gbrain/config.json` is good. If doctor reports `getaddrinfo ENOTFOUND`
-during a schema/DDL step, the `GBRAIN_DIRECT_DATABASE_URL` env var is missing
-(see Gotchas).
-
-## Step 4 — Verify Notion connection (dry-run)
-
-```bash
-bun "$env:CLAUDE_PLUGIN_ROOT/scripts/sync-pull.mjs" --database projects --dry-run
-```
-
-Expected: lists page titles from Projects database without writing to gbrain.
-If `401 Unauthorized`, the integration is not shared with the database
-(see RUNBOOK.md Step 4).
+(Environment verification is folded into `/notion-sync doctor` — run it any time
+to confirm `.env`, gbrain, and Notion connectivity.)
 
 ---
 
@@ -299,8 +240,9 @@ Compare against Step 1's dry-run count.
 
 ### `/notion-sync push`
 
-Bidirectional reconcile: classify every gbrain page against Notion and act.
-Notion wins on a dual-edit conflict (local version backed up to `.conflict/`).
+One-way push: send local gbrain edits up to Notion. The Notion → gbrain
+direction is `pull`'s job — `push` never writes gbrain and never overwrites a
+Notion page that changed since the last sync.
 
 ## Step 1 — Dry-run first
 
@@ -308,8 +250,7 @@ Notion wins on a dual-edit conflict (local version backed up to `.conflict/`).
 cd "$CLAUDE_PLUGIN_ROOT" && bun run push:dry
 ```
 
-Prints the four-quadrant classification for every page (skip / to_notion /
-to_brain / conflict / created) without writing anything. Review before
+Prints the classification for every page without writing anything. Review before
 executing.
 
 ## Step 2 — Execute push
@@ -318,15 +259,20 @@ executing.
 cd "$CLAUDE_PLUGIN_ROOT" && bun run push
 ```
 
-For each page `scripts/sync.mjs` compares the live Notion state and the gbrain
-page against the `sync-state.db` baseline:
+For each gbrain page (only those whose frontmatter `source` is one of
+`projects` / `todo` / `inbox` / `knowledge`), `scripts/sync.mjs` compares the
+live Notion state and the gbrain page against the `sync-state.db` baseline:
 
-- **to_notion** — local edit pushed to Notion (properties via `pages.update`;
-  body only if the Notion page has no converter-unsupported blocks).
-- **to_brain** — Notion is newer; the gbrain page is refreshed.
-- **conflict** — both sides changed; Notion wins, local backed up to `.conflict/`.
+- **to_notion** — only the gbrain side changed → push the edit to Notion
+  (properties via `pages.update`; body only if the Notion page has no
+  converter-unsupported blocks, else properties sync and a conflict is recorded).
 - **created** — a gbrain page with no `notion_page_id` is created in Notion
   (allowed only into Inbox or Knowledge Base).
+- **skip** — only the Notion side changed, or nothing changed. Left untouched;
+  run `/notion-sync pull` to bring Notion's update down to gbrain.
+- **diverged (conflict)** — both sides changed since the last sync. Neither side
+  is written; the page is recorded as a conflict. Run `/notion-sync pull` to
+  refresh gbrain, then re-push.
 
 ## Step 3 — Review conflicts
 
@@ -336,61 +282,9 @@ Requires a prior `/notion-sync pull` to seed the baseline.
 
 ---
 
-### `/notion-sync capture`
-
-Capture a reusable insight learned during this session as a new gbrain
-knowledge note — immediately searchable, and created in the Notion 知識庫 on
-the next push. Use when the user says capture / 記進腦 / 存到 brain /
-把這次學到的記下來.
-
-The body markdown is read from **stdin**; metadata comes from flags. Compose
-the note from the session yourself, then pipe it in.
-
-## Step 1 — Assemble the note
-
-Pick a short `--title`, a `--category` (技術 / 工具 / 職涯 / 生活 / 投資,
-default 技術), and write the insight as self-contained markdown — it will live
-on its own, not inside this conversation's context.
-
-## Step 2 — Write it into gbrain
-
-```bash
-cd "$CLAUDE_PLUGIN_ROOT" && bun scripts/capture.mjs --title "標題" --category 技術 <<'EOF'
-<markdown body of the insight>
-EOF
-```
-
-Optional flags: `--status`（default 精華）、`--tags "a,b"`、`--summary "一句話"`.
-
-On success it prints the gbrain slug and chunk count. The note is written
-**without** `notion_page_id`, so the next `/notion-sync push` classifies it as
-`created` and adds it to the Notion 知識庫.
-
-## Step 3 — Verify (optional)
-
-```bash
-cd "$CLAUDE_PLUGIN_ROOT" && bun scripts/recall.mjs "<title keyword>"
-```
-
-## Gotchas
-
-- Body MUST arrive via stdin (heredoc). Running with no pipe exits 1 with
-  `pipe the note markdown via stdin`.
-- `--category` MUST be one of 技術 / 工具 / 職涯 / 生活 / 投資 (the Notion 知識庫
-  「類別」 options); any other value exits 1.
-- Prefer `GBRAIN_HTTP_URL` + `GBRAIN_HTTP_TOKEN` in `.env` (HTTP mode): writes
-  route through the running `gbrain serve`, so the sync process needs no direct
-  DB credentials. On the Supabase Postgres engine there is NO single-writer lock,
-  so the CLI fallback (`gbrain put`) also works concurrently with serve — the old
-  PGLite lock-contention reason for HTTP mode no longer applies.
-- `source: knowledge` is hardcoded — push only ever creates Inbox/Knowledge
-  pages, never Projects/To-Do.
-
----
-
 ### `/notion-sync conflicts`
 
-List unresolved sync conflicts recorded in `sync-state.db`.
+List sync conflicts recorded in `sync-state.db`.
 
 ## Step 1 — List
 
@@ -398,13 +292,19 @@ List unresolved sync conflicts recorded in `sync-state.db`.
 cd "$CLAUDE_PLUGIN_ROOT" && bun scripts/sync.mjs --conflicts
 ```
 
-Each entry shows the gbrain slug, detection time, and the `.conflict/` backup
-path holding the local version that lost to Notion.
+Two kinds get recorded during `push`:
+
+- **diverged** — both Notion and gbrain changed since the last sync. The
+  `backup_path` reads `(diverged — run pull, then re-push)`.
+- **body-unsupported** — a gbrain body edit could not be pushed because the
+  Notion page contains converter-unsupported blocks; the local body is backed
+  up to `.conflict/` (`backup_path` points to that file).
 
 ## Step 2 — Resolve manually
 
-Open the backup file, compare with the current Notion page, and merge by hand
-if the local version had wanted changes. The full audit trail is appended to
+For a diverged page, run `/notion-sync pull` to refresh gbrain from Notion, then
+re-push your edit. For a body-unsupported page, open the `.conflict/` backup and
+reconcile by hand. The full audit trail is appended to
 `~/.notion-sync/conflicts.jsonl`.
 
 ---
@@ -440,41 +340,6 @@ Windows only. macOS/Linux scheduler support is planned for v0.2.
 
 ---
 
-### `/notion-sync postprocess`
-
-Run gbrain maintenance after a sync (or batch of syncs). Decoupled from
-`pull` so sync stays fast and predictable.
-
-## Step 1 — Execute
-
-```bash
-node "$env:CLAUDE_PLUGIN_ROOT/scripts/postprocess.mjs"
-```
-
-Runs in order, each step's failure does not block the next:
-
-1. `gbrain extract links --source db` — rebuild backlink graph
-2. `gbrain dream --dry-run` — doc consolidation, timeline extraction
-3. `gbrain embed --stale` — re-embed any stale chunks
-
-Note on embeddings: gbrain **already embeds on every `put`** (using the OpenAI
-key in `~/.gbrain/config.json`), so a fresh pull lands fully vectorized — verify
-with `gbrain status` (`embed=100%`). This script's Step 3 is gated on an
-`OPENAI_API_KEY` **env var** and is skipped without it; that gate is the script's
-own, NOT gbrain's, and skipping it is harmless because `gbrain put` already
-embedded. Step 3 only matters for re-embedding chunks gone stale (model change,
-manual edits).
-
-## Step 2 — Verify
-
-```bash
-gbrain query "<a known PAI keyword>"
-```
-
-Backlink count and chunk count should both be higher than before.
-
----
-
 ### `/notion-sync status`
 
 Show current sync state.
@@ -499,7 +364,7 @@ Reports `Next Run Time`, `Last Run Time`, `Last Result` (0 = success).
 cd "$CLAUDE_PLUGIN_ROOT" && bun scripts/sync.mjs --conflicts
 ```
 
-Lists dual-edit conflicts pending manual resolution (empty if none).
+Lists diverged / body-unsupported conflicts pending manual resolution (empty if none).
 
 ---
 
@@ -548,8 +413,7 @@ Exit code 0 if all pass, 1 if any check fails.
 - `gbrain put` is the correct CLI command, **not** `gbrain page put`
   (alignment fix shipped in commit `c814887`).
 - `pull` and `push` run under **`bun`**, not `node` — they load
-  `sync-state.js`, which imports `bun:sqlite`. `postprocess` / `doctor`
-  stay on `node`.
+  `sync-state.js`, which imports `bun:sqlite`. `doctor` stays on `node`.
 - Push never creates a Notion property or select option. A frontmatter value
   not present in the live Notion schema is skipped with a warning.
 - Body push is blocked when the Notion page contains converter-unsupported
