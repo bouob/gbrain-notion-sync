@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1](https://github.com/bouob/gbrain-notion-sync/compare/v0.3.0...v0.3.1) (2026-09-23)
+
+
+### Bug Fixes
+
+* **notion-sync:** support gbrain 0.51+ writes and drop To-Do sync ([813b859](https://github.com/bouob/gbrain-notion-sync/commit/813b859c5cad060d43b77f2cddcf407761618109))
+* **notion-sync:** support gbrain 0.51+ writes and drop To-Do sync ([08b4662](https://github.com/bouob/gbrain-notion-sync/commit/08b4662102825636037df9ff14fb7db619980367))
+
 ## [0.3.0](https://github.com/bouob/gbrain-notion-sync/compare/v0.2.0...v0.3.0) (2026-06-08)
 
 
